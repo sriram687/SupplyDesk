@@ -1,211 +1,91 @@
-# Meridian Supply Chain RAG Assistant
+# SupplyDesk Conversational AI
 
-A Retrieval-Augmented Generation (RAG) application for answering supply-chain and procurement questions using Meridian Components' internal PDF documents.
+A production-ready, Retrieval-Augmented Generation (RAG) application for answering supply-chain and procurement questions. SupplyDesk leverages **Google Gemini 2.5 Flash** and **ChromaDB** to allow users to interact seamlessly with internal documents using a context-aware conversational chat interface.
 
+![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)
+![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=flat&logo=langchain&logoColor=white)
 
-LIVE APP: https://meridian-supply-chain-rag.streamlit.app/
 ## Features
 
-- PDF document ingestion
-- Recursive character chunking
-- OpenAI `text-embedding-3-small` embeddings
-- Persistent ChromaDB vector store
-- GPT-4o answer generation
-- Source document and page display
-- Cross-document question answering
-- Guardrail against unsupported answers
-- Streamlit interface
+- **Context-Aware Chat Interface**: A conversational UI with memory (session state), allowing users to ask natural follow-up questions.
+- **Google Gemini Integrations**: Powered by `gemini-2.5-flash` for high-speed generation and `models/gemini-embedding-001` for embeddings.
+- **Optimized Document Ingestion**: Deduplicated vector ingestion into persistent ChromaDB using stable cryptographic chunk hashing.
+- **Intelligent Chunking**: Recursive character splitting (1000 size / 150 overlap) ensuring robust semantic boundaries.
+- **Transparent Sourcing**: Every answer includes expandable citations linked to specific pages of the source documents.
+- **Resource Caching**: Streamlit resource caching guarantees blazing fast app navigation and low API latency.
 
 ## Architecture
 
 ```text
-PDFs
-  ↓
-PyPDFLoader
-  ↓
-RecursiveCharacterTextSplitter
-  ↓
-OpenAI text-embedding-3-small
-  ↓
-Persistent ChromaDB
-  ↓
-Similarity Search (Top-K)
-  ↓
-GPT-4o
-  ↓
-Answer + Sources
+PDF Documents
+      ↓
+PyPDFLoader & Recursive Text Splitter
+      ↓
+Stable MD5 Deduplication
+      ↓
+Google Gemini Embeddings
+      ↓
+Persistent ChromaDB Vector Store
+      ↓
+Similarity Search (Dynamic Top-K) + Chat History
+      ↓
+Gemini 2.5 Flash
+      ↓
+Context-Aware Answer + Source Citations
 ```
 
-## Chunking Configuration
+## Setup & Installation
 
-- Chunk size: **1000 characters**
-- Chunk overlap: **150 characters**
-- Retrieval: **Top 6 chunks by default**
+### 1. Environment Setup
 
-These values balance context preservation with retrieval precision. The overlap helps prevent important sentences from being separated at chunk boundaries.
-
-## Project Structure
-
-```text
-supplychain-rag/
-├── app.py
-├── ingest.py
-├── rag.py
-├── requirements.txt
-├── .env
-├── .env.example
-├── .gitignore
-├── README.md
-├── data/
-│   ├── Meridian_Supply_Chain_Review_Q1_FY2025-26.pdf
-│   └── Meridian_Procurement_Policy_Handbook_v4.2.pdf
-└── chroma_db/
-```
-
-## Setup
-
-### 1. Create a virtual environment
+Create and activate a virtual environment:
 
 ```bash
 python -m venv venv
-```
-
-Windows PowerShell:
-
-```powershell
+# Windows:
 .\venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
 ```
 
-### 2. Install dependencies
+### 2. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure the API key
+### 3. Configure API Credentials
 
-Edit `.env`:
+Create a `.env` file in the project root:
 
-```text
-OPENAI_API_KEY=your_actual_key
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
+> **Note**: Never commit your `.env` file. It is explicitly ignored in `.gitignore`.
 
-Never commit `.env` to GitHub.
+### 4. Add Knowledge Base Documents
 
-### 4. Add the PDFs
+Place your PDF documents into the `data/` directory (create it if it doesn't exist). Alternatively, you can upload them directly via the Streamlit UI once the app is running.
 
-Place the Meridian PDFs in:
+## Usage
 
-```text
-data/
-```
-
-### 5. Build the vector database
-
-```bash
-python ingest.py
-```
-
-### 6. Run the application
+Start the Streamlit application:
 
 ```bash
 streamlit run app.py
 ```
 
-Then open the Streamlit URL shown in the terminal, normally:
+The application will be available at `http://localhost:8501`.
 
-```text
-http://localhost:8501
-```
+### Production Optimization Notes
 
-## Recommended Test Questions
-
-1. Which supplier had the highest spend in Q1, and what was its on-time delivery percentage?
-2. How many line stoppages happened in Q1, what was the total downtime, and what caused them?
-3. What is the approval authority for a purchase order worth ₹1.4 crore?
-4. What are the four supplier classification categories, and what qualifies a supplier as Critical?
-5. Kaveri Metals recorded 88.1% on-time delivery and 1,150 defects per million in Q1. Which policy clauses does this trigger, and what exactly must the buyer do?
-6. Microcontrollers are imported with a 46-day lead time. Using the safety-stock policy, how many days of stock should be held?
-7. Trident Circuit Boards had a defect rate of 640 parts per million. What is the cost consequence under the policy?
-8. The microcontroller supplier is single-source. What does the sourcing policy require, and what is Meridian already doing about it?
-9. What is the annual salary of the Head of Procurement?
-10. What policy requirement applies to a Critical supplier's second source?
-
-## Persistence Test
-
-After running:
-
-```bash
-python ingest.py
-```
-
-the Chroma database is stored locally in:
-
-```text
-chroma_db/
-```
-
-Stop and restart Streamlit. The application should still be able to retrieve indexed information without rebuilding the database.
-
-## Hallucination / Grounding Test
-
-Ask a question whose answer is not present in either PDF, for example:
-
-> What is the annual salary of the Head of Procurement?
-
-The application should respond:
-
-> The information is not available in the uploaded documents.
+- **Caching**: The database connections and LLM models are cached globally via `@st.cache_resource`, ensuring high throughput.
+- **Deduplication**: When new documents are added or the "Index Documents" button is clicked, SupplyDesk calculates MD5 hashes of all chunks to prevent redundant vector database entries.
+- **UI State**: Interaction history is managed through `st.session_state` preserving multi-turn conversations safely across Streamlit re-runs.
 
 ## Troubleshooting
 
-### No API key
-
-Check `.env` and make sure `OPENAI_API_KEY` is set.
-
-### No documents found
-
-Make sure the PDFs are inside the `data/` directory.
-
-### Empty ChromaDB
-
-Run:
-
-```bash
-python ingest.py
-```
-
-again after adding the PDFs.
-
-### Retrieval quality is weak
-
-Try increasing `top_k` in the Streamlit interface. Cross-document questions often benefit from retrieving 6 or more chunks.
-
-## Security
-
-Do not commit:
-
-- `.env`
-- OpenAI API keys
-- private credentials
-
-The `.gitignore` file is configured to prevent accidental commits of these files.
-
-## Demo
-
-Add the final 3-minute demonstration video link here.
-
-## Assignment Notes
-
-This implementation covers the core RAG requirements:
-
-- PDF ingestion
-- Recursive chunking
-- OpenAI embeddings
-- ChromaDB persistence
-- Similarity retrieval
-- GPT-4o generation
-- Source attribution
-- Cross-document reasoning
-- Grounded-response guardrails
-- Streamlit UI
+- **No API key found:** Check `.env` and ensure `GEMINI_API_KEY` is set correctly. For Streamlit Cloud deployments, add it to the Secrets management console.
+- **Empty Knowledge Base:** If the bot cannot find any information, ensure PDFs are uploaded and click "Index Documents" on the sidebar.
+- **Retrieval Quality:** If the answers lack context, increase the "Retrieved chunks" slider in the UI to widen the semantic search radius.
