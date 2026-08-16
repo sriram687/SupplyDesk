@@ -81,7 +81,7 @@ def get_llm():
 # ASK QUESTION
 # ---------------------------------------------------------
 
-def ask_question(question, top_k=5):
+def ask_question(question, top_k=5, chat_history=""):
     """
     Retrieve relevant documents and generate an answer
     using Gemini.
@@ -143,6 +143,9 @@ Be concise and professional.
 
 Always mention the relevant supplier, number, policy,
 date, or other specific value when available.
+
+CHAT HISTORY:
+{chat_history}
 
 USER QUESTION:
 {question}

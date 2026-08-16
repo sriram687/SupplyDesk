@@ -43,40 +43,60 @@ if st.sidebar.button("Index Documents", type="primary"):
 
 st.divider()
 
-st.subheader("Ask a question")
-
-question = st.text_area(
-    "Question",
-    placeholder="Example: Which supplier had the highest spend in Q1?",
-    height=100,
-)
+st.subheader("Chat with your Data")
 
 top_k = st.slider("Retrieved chunks", min_value=3, max_value=10, value=6)
 
-if st.button("Ask", type="primary"):
-    if not question.strip():
-        st.warning("Please enter a question.")
-    else:
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display existing messages
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+        if "sources" in msg and msg["sources"]:
+            with st.expander("Sources"):
+                for source in msg["sources"]:
+                    page = source.get("page")
+                    page_text = f"Page {int(page) + 1}" if isinstance(page, int) else f"Page {page}"
+                    st.write(f"📄 **{source['file']}** — {page_text}")
+
+# Chat input
+if question := st.chat_input("Example: Which supplier had the highest spend in Q1?"):
+    # Render user message immediately
+    with st.chat_message("user"):
+        st.write(question)
+    
+    # Store user message
+    st.session_state.messages.append({"role": "user", "content": question})
+
+    # Prepare chat history
+    history_parts = []
+    for m in st.session_state.messages[:-1]: # exclude the latest
+        history_parts.append(f"{m['role'].capitalize()}: {m['content']}")
+    chat_history_str = "\n".join(history_parts)
+
+    with st.chat_message("assistant"):
         with st.spinner("Searching the knowledge base..."):
             try:
-                answer, sources = ask_question(question, top_k=top_k)
-
-                st.subheader("Answer")
+                answer, sources = ask_question(question, top_k=top_k, chat_history=chat_history_str)
                 st.write(answer)
-
-                st.subheader("Sources")
+                
                 if sources:
-                    for source in sources:
-                        page = source.get("page")
-                        page_text = (
-                            f"Page {int(page) + 1}"
-                            if isinstance(page, int)
-                            else f"Page {page}"
-                        )
-                        st.write(f"📄 **{source['file']}** — {page_text}")
+                    with st.expander("Sources"):
+                        for source in sources:
+                            page = source.get("page")
+                            page_text = f"Page {int(page) + 1}" if isinstance(page, int) else f"Page {page}"
+                            st.write(f"📄 **{source['file']}** — {page_text}")
                 else:
                     st.info("No source metadata was returned.")
-
+                
+                # Store assistant response
+                st.session_state.messages.append({
+                    "role": "assistant", 
+                    "content": answer, 
+                    "sources": sources
+                })
             except Exception as exc:
                 st.error(f"Error: {exc}")
                 st.info("Make sure the API key is configured and documents have been indexed.")
