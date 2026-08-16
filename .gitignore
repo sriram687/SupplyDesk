@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Chroma local database
+chroma_db/
+
+# Streamlit
+.streamlit/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary extracted assignment files
+_source/
