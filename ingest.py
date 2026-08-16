@@ -1,4 +1,5 @@
 import os
+import hashlib
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -65,7 +66,15 @@ def process_and_embed_documents():
         persist_directory=VECTOR_STORE_DIR,
     )
 
-    chroma_instance.add_documents(document_chunks)
+    # Generate stable IDs for deduplication
+    chunk_ids = []
+    for chunk in document_chunks:
+        source = chunk.metadata.get("source_file", "unknown")
+        page = chunk.metadata.get("page", 0)
+        content_hash = hashlib.md5(chunk.page_content.encode('utf-8')).hexdigest()
+        chunk_ids.append(f"{source}_page{page}_{content_hash}")
+
+    chroma_instance.add_documents(document_chunks, ids=chunk_ids)
 
     print("Embeddings created and stored in ChromaDB.")
 

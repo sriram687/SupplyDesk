@@ -29,8 +29,10 @@ if st.sidebar.button("Index Documents", type="primary"):
         data_dir.mkdir(exist_ok=True)
 
         for uploaded_file in uploaded_files:
-            with open(data_dir / uploaded_file.name, "wb") as f:
-                f.write(uploaded_file.getbuffer())
+            file_path = data_dir / uploaded_file.name
+            if not file_path.exists():
+                with open(file_path, "wb") as f:
+                    f.write(uploaded_file.getbuffer())
 
         with st.spinner("Extracting, chunking, embedding, and indexing..."):
             file_count, chunk_count = process_and_embed_documents()

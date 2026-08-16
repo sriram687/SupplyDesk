@@ -51,56 +51,47 @@ SUPPLY_CHAIN_COLLECTION_ID = "supply_chain_documents_db"
 
 
 # ---------------------------------------------------------
-# EMBEDDINGS
+# RESOURCE CACHING
 # ---------------------------------------------------------
 
-embedding_model = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001",
-    google_api_key=GEMINI_API_KEY,
-)
+@st.cache_resource
+def get_vectorstore():
+    """Initialize and cache the Chroma vectorstore and embeddings."""
+    embedding_model = GoogleGenerativeAIEmbeddings(
+        model="models/gemini-embedding-001",
+        google_api_key=GEMINI_API_KEY,
+    )
+    return Chroma(
+        collection_name=SUPPLY_CHAIN_COLLECTION_ID,
+        embedding_function=embedding_model,
+        persist_directory=VECTOR_STORE_DIR,
+    )
 
-
-# ---------------------------------------------------------
-# VECTOR DATABASE
-# ---------------------------------------------------------
-
-chroma_instance = Chroma(
-    collection_name=SUPPLY_CHAIN_COLLECTION_ID,
-    embedding_function=embedding_model,
-    persist_directory=VECTOR_STORE_DIR,
-)
-
-
-# ---------------------------------------------------------
-# RETRIEVER
-# ---------------------------------------------------------
-
-doc_retriever = chroma_instance.as_retriever(
-    search_type="similarity",
-    search_kwargs={"k": 5},
-)
-
-
-# ---------------------------------------------------------
-# GEMINI LLM
-# ---------------------------------------------------------
-
-gemini_llm = ChatGoogleGenerativeAI(
-    model="gemini-2.5-flash",
-    google_api_key=GEMINI_API_KEY,
-    temperature=0,
-)
+@st.cache_resource
+def get_llm():
+    """Initialize and cache the Gemini LLM."""
+    return ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        google_api_key=GEMINI_API_KEY,
+        temperature=0,
+    )
 
 
 # ---------------------------------------------------------
 # ASK QUESTION
 # ---------------------------------------------------------
 
-def ask_question(question):
+def ask_question(question, top_k=5):
     """
     Retrieve relevant documents and generate an answer
     using Gemini.
     """
+
+    chroma_instance = get_vectorstore()
+    doc_retriever = chroma_instance.as_retriever(
+        search_type="similarity",
+        search_kwargs={"k": top_k},
+    )
 
     documents = doc_retriever.invoke(question)
 
@@ -161,6 +152,7 @@ DOCUMENT CONTEXT:
 """
 
     # Generate answer
+    gemini_llm = get_llm()
     response = gemini_llm.invoke(prompt)
 
     answer = response.content
